@@ -1,0 +1,293 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Pris ma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Notification {
+  id               Int      @id @default(autoincrement())
+  Message          String
+  TypeNotification String
+  CreateDate       DateTime @default(now())
+
+  Students StudentOnNotification[]
+
+  CompanyNoti    CompanyProfile? @relation(fields: [CompanyNotiId], references: [CompanyUserId])
+  CompanyNotiId  Int?
+  PracticeNoti   Practice?       @relation(fields: [PracticeNotiId], references: [id])
+  PracticeNotiId Int?
+}
+
+model CompanyUser {
+  id       Int    @id @default(autoincrement())
+  Username String
+  Password String
+  email    String
+
+  CompanyPerfil CompanyProfile?
+}
+
+// Entidad debil de CompanyUser
+model CompanyProfile {
+  Sunac          String
+  GitHub         String?
+  IndustrySector String
+  imageURL       String?
+  PhoneNumber    String?
+  Description    String?
+  Address        String?
+  InfoCorta      String? @default("Sin descripción")
+  InfoLarga      String? @default("Sin descripción")
+  PortadaImg     String?
+
+  // LLave foranea que viene siendo la llave de esta entidad, por la entidad débil
+  CompanyUser   CompanyUser @relation(fields: [CompanyUserId], references: [id], onDelete: Cascade)
+  CompanyUserId Int         @unique
+
+  Offers        Offer[]
+  Practices     Practice[]
+  Notifications Notification[]
+  Post          PostUser[]
+  Comentario    Comentario[]
+  Reaccion      Reaccion[]
+
+  ComentariosRecibidos Comentario[] @relation("ComentariosSobreEmpresa")
+
+  @@id([CompanyUserId])
+}
+
+model StudentUser {
+  id       Int    @id @default(autoincrement())
+  Name     String
+  LastName String
+  Password String
+  email    String
+
+  UserProfile StudentProfile?
+}
+
+// Entidad debil de StudentUser
+model StudentProfile {
+  Institute   String
+  GitHub      String?
+  Linkedin    String?
+  imageURL    String?
+  PhoneNumber String?
+  Description String?
+  Cycle       Int?
+  Career      String?
+  PortadaImg  String?
+
+  // LLave foranea que viene siendo la llave de esta entidad, por la entidad débil
+  user          StudentUser @relation(fields: [studentUserId], references: [id])
+  studentUserId Int         @unique
+
+  Habilities    StudentOnField[]
+  Offers        StudentOnOffers[]
+  Practices     StudentOnPractice[]
+  Projects      ProjectUsers[]
+  Notifications StudentOnNotification[]
+
+  // Self Relation Many-To-Many
+  FollowedBy Follows[] @relation("FollowedBy")
+  Following  Follows[] @relation("Following")
+
+  Post               PostUser[]
+  Comentario         Comentario[]
+  Reaccion           Reaccion[]
+  ReaccionPuntuacion ReaccionPuntuacion[]
+
+  @@id([studentUserId])
+}
+
+model Fields {
+  id          Int     @id @default(autoincrement())
+  FieldName   String
+  Description String?
+
+  Users  StudentOnField[]
+  Offers OfferOnFields[]
+}
+
+model Offer {
+  id           Int      @id @default(autoincrement())
+  DateLimite   DateTime
+  DateInit     DateTime @default(now())
+  Vacancies    Int
+  RequireHours Int
+
+  Users        StudentOnOffers[]
+  Requeriments OfferOnFields[]
+
+  Company   CompanyProfile @relation(fields: [CompanyId], references: [CompanyUserId])
+  CompanyId Int
+}
+
+model ProjectUsers {
+  id          Int     @id @default(autoincrement())
+  NameProject String
+  Description String?
+  Repository  String
+
+  UserProject   StudentProfile @relation(fields: [UserProjectId], references: [studentUserId])
+  UserProjectId Int
+}
+
+model Practice {
+  id        Int     @id @default(autoincrement())
+  Titulo    String
+  InfoCorta String?
+  InfoLarga String
+
+  Finalized Boolean  @default(false)
+  InitDate  DateTime @default(now())
+
+  // Maybe con una relación One-To-One con Offers esto ya no sea necesario.
+
+  CompanyId          Int
+  Company            CompanyProfile       @relation(fields: [CompanyId], references: [CompanyUserId])
+  Users              StudentOnPractice[]
+  Notifications      Notification[]
+  Comentario         Comentario[]
+  ReaccionPuntuacion ReaccionPuntuacion[]
+}
+
+model PostUser {
+  id              Int      @id @default(autoincrement())
+  PublicationDate DateTime @default(now())
+  TituloPost      String
+  Descripcion     String
+  ImgPostUrl      String?
+
+  Company   CompanyProfile? @relation(fields: [CompanyId], references: [CompanyUserId], onDelete: Cascade)
+  CompanyId Int?
+
+  Student   StudentProfile? @relation(fields: [StudentId], references: [studentUserId], onDelete: Cascade)
+  StudentId Int?
+
+  Comentario Comentario[]
+  Reaccion   Reaccion[]
+}
+
+model Reaccion {
+  id Int @id @default(autoincrement())
+
+  TypeReaction String // Si es Like o Dislike
+  ReactionDate DateTime @default(now())
+
+  Post   PostUser @relation(fields: [PostId], references: [id], onDelete: Cascade)
+  PostId Int
+
+  Student   StudentProfile? @relation(fields: [StudentId], references: [studentUserId], onDelete: Cascade)
+  StudentId Int?
+
+  Company   CompanyProfile? @relation(fields: [CompanyId], references: [CompanyUserId], onDelete: Cascade)
+  CompanyId Int?
+}
+
+model ReaccionPuntuacion {
+  id           Int      @id @default(autoincrement())
+  Puntuacion   Int
+  ReaccionDate DateTime @default(now())
+
+  Practice   Practice @relation(fields: [PracticeId], references: [id], onDelete: Cascade)
+  PracticeId Int
+
+  Student   StudentProfile @relation(fields: [StudentId], references: [studentUserId], onDelete: Cascade)
+  StudentId Int
+}
+
+model Comentario {
+  id              Int      @id @default(autoincrement())
+  PublicationDate DateTime @default(now())
+  ComentarioUser  String
+
+  Company   CompanyProfile? @relation(fields: [CompanyId], references: [CompanyUserId], onDelete: Cascade)
+  CompanyId Int?
+
+  Student   StudentProfile? @relation(fields: [StudentId], references: [studentUserId], onDelete: Cascade)
+  StudentId Int?
+
+  Post   PostUser? @relation(fields: [PostId], references: [id], onDelete: Cascade)
+  PostId Int?
+
+  Practice   Practice? @relation(fields: [PracticeId], references: [id], onDelete: Cascade)
+  PracticeId Int?
+
+  SobreEmpresa   CompanyProfile? @relation("ComentariosSobreEmpresa", fields: [SobreEmpresaId], references: [CompanyUserId], onDelete: Cascade)
+  SobreEmpresaId Int?
+}
+
+// Relation of Users - Practice
+model StudentOnPractice {
+  users      StudentProfile @relation(fields: [UserId], references: [studentUserId])
+  UserId     Int
+  practice   Practice       @relation(fields: [PracticeId], references: [id])
+  PracticeId Int
+  assignedAt DateTime       @default(now())
+
+  @@id([UserId, PracticeId])
+}
+
+// Relation of Users - Offers
+model StudentOnOffers {
+  users      StudentProfile @relation(fields: [UserId], references: [studentUserId])
+  UserId     Int
+  offers     Offer          @relation(fields: [OffersId], references: [id])
+  OffersId   Int
+  assignedAt DateTime       @default(now())
+
+  @@id([UserId, OffersId])
+}
+
+// Relation of Offer-Fields
+model OfferOnFields {
+  fields   Fields @relation(fields: [FieldId], references: [id])
+  FieldId  Int
+  offers   Offer  @relation(fields: [OffersId], references: [id])
+  OffersId Int
+
+  @@id([FieldId, OffersId])
+}
+
+// Relation of User-Fields
+model StudentOnField {
+  User       StudentProfile @relation(fields: [UserId], references: [studentUserId])
+  UserId     Int
+  Field      Fields         @relation(fields: [FieldId], references: [id])
+  FieldId    Int
+  assignedAt DateTime       @default(now())
+
+  @@id([UserId, FieldId])
+}
+
+// self Relation Users with Users
+model Follows {
+  // el "FollowedBy" es el atributo que va a ser referencia.
+  followedBy   StudentProfile @relation("FollowedBy", fields: [FollowedById], references: [studentUserId])
+  FollowedById Int
+  following    StudentProfile @relation("Following", fields: [FollowingId], references: [studentUserId])
+  FollowingId  Int
+
+  assignedAt DateTime @default(now())
+
+  @@id([FollowedById, FollowingId])
+}
+
+model StudentOnNotification {
+  Student        StudentProfile @relation(fields: [StudentId], references: [studentUserId])
+  StudentId      Int
+  Notification   Notification   @relation(fields: [NotificationId], references: [id])
+  NotificationId Int
+
+  @@id([StudentId, NotificationId])
+}
